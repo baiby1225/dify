@@ -17,7 +17,7 @@ from libs.helper import TimestampField, uuid_value
 from models.model import App, AppMode, EndUser
 from services.errors.message import SuggestedQuestionsAfterAnswerDisabledError
 from services.message_service import MessageService
-
+from extensions.storage.aliyun_oss_storage import AliyunOssStorage
 
 class MessageListApi(Resource):
     message_fields = {
@@ -34,6 +34,7 @@ class MessageListApi(Resource):
             if obj.message_metadata
             else []
         ),
+        "reference_source": fields.Raw(attribute=lambda obj: MessageListApi().get_reference_file(obj)),
         "created_at": TimestampField,
         "agent_thoughts": fields.List(fields.Nested(agent_thought_fields)),
         "status": fields.String,
@@ -56,7 +57,7 @@ class MessageListApi(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("conversation_id", required=True, type=uuid_value, location="args")
         parser.add_argument("first_id", type=uuid_value, location="args")
-        parser.add_argument("limit", type=int_range(1, 100), required=False, default=20, location="args")
+        parser.add_argument("limit", type=int_range(1, 1000), required=False, default=20, location="args")
         args = parser.parse_args()
 
         try:
@@ -64,9 +65,40 @@ class MessageListApi(Resource):
                 app_model, end_user, args["conversation_id"], args["first_id"], args["limit"]
             )
         except services.errors.conversation.ConversationNotExistsError:
-            raise NotFound("Conversation Not Exists.")
+            raise NotFound("对话不存在,请刷新页面后重试!")
         except services.errors.message.FirstMessageNotExistsError:
-            raise NotFound("First Message Not Exists.")
+            raise NotFound("对话不存在,请刷新页面后重试!")
+
+    def get_retriever_resources(self, obj):
+        try:
+            if obj.message_metadata:
+                return json.loads(obj.message_metadata).get("retriever_resources", [])
+            return []
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    def get_reference_file(self, obj):
+        try:
+            resources = []
+            seen_documents = set()  # 用于记录已处理的documentid
+            if obj.message_metadata:
+                metadata = json.loads(obj.message_metadata)
+                storage = AliyunOssStorage()
+                for item in metadata.get("retriever_resources", []):
+                    if not item.get("doc_metadata"):
+                        continue
+                    osskeys = item["doc_metadata"]["realfile_osskey"]
+                    if osskeys:
+                        for osskey in osskeys.split("|"):
+                            if osskey in seen_documents:  # 如果已处理过则跳过
+                                continue
+                            seen_documents.add(osskey)
+                            resource = storage.referencefile(osskey)
+                            if resource:
+                                resources.append(resource)
+            return resources
+        except Exception as e:
+            return []
 
 
 class MessageFeedbackApi(Resource):
@@ -88,7 +120,7 @@ class MessageFeedbackApi(Resource):
                 content=args.get("content"),
             )
         except services.errors.message.MessageNotExistsError:
-            raise NotFound("Message Not Exists.")
+            raise NotFound("对话不存在,请刷新页面后重试!")
 
         return {"result": "success"}
 
@@ -99,7 +131,7 @@ class AppGetFeedbacksApi(Resource):
         """Get All Feedbacks of an app"""
         parser = reqparse.RequestParser()
         parser.add_argument("page", type=int, default=1, location="args")
-        parser.add_argument("limit", type=int_range(1, 101), required=False, default=20, location="args")
+        parser.add_argument("limit", type=int_range(1, 1000), required=False, default=20, location="args")
         args = parser.parse_args()
         feedbacks = MessageService.get_all_messages_feedbacks(app_model, page=args["page"], limit=args["limit"])
         return {"data": feedbacks}
@@ -118,7 +150,7 @@ class MessageSuggestedApi(Resource):
                 app_model=app_model, user=end_user, message_id=message_id, invoke_from=InvokeFrom.SERVICE_API
             )
         except services.errors.message.MessageNotExistsError:
-            raise NotFound("Message Not Exists.")
+            raise NotFound("对话不存在,请刷新页面后重试!")
         except SuggestedQuestionsAfterAnswerDisabledError:
             raise BadRequest("Suggested Questions Is Disabled.")
         except Exception:

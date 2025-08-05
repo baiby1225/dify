@@ -1,7 +1,8 @@
 from flask_restful import fields
 
 from fields.member_fields import simple_account_fields
-from libs.helper import TimestampField
+from libs.helper import TimestampField, debug_print
+import re
 
 from .raws import FilesContainedField
 
@@ -9,6 +10,14 @@ from .raws import FilesContainedField
 class MessageTextField(fields.Raw):
     def format(self, value):
         return value[0]["text"] if value else ""
+
+class NameTextField(fields.Raw):
+    def format(self, value):
+        debug_print("================================")
+        debug_print(value)
+        value = re.sub(r'[^\x00-\x7F]+', '', value)
+        debug_print(value)
+        return value
 
 
 feedback_fields = {
@@ -192,7 +201,7 @@ conversation_detail_fields = {
 
 simple_conversation_fields = {
     "id": fields.String,
-    "name": fields.String,
+    "name": NameTextField,
     "inputs": FilesContainedField,
     "status": fields.String,
     "introduction": fields.String,

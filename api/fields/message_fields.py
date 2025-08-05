@@ -5,7 +5,10 @@ from libs.helper import TimestampField
 
 from .raws import FilesContainedField
 
-feedback_fields = {"rating": fields.String}
+feedback_fields = {
+    "rating": fields.String,
+    "content": fields.String
+}
 
 agent_thought_fields = {
     "id": fields.String,

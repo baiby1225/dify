@@ -43,3 +43,8 @@ class AliyunOSSStorageConfig(BaseSettings):
         description="Base path within the bucket to store objects (e.g., 'my-app-data/')",
         default=None,
     )
+
+    ALIYUN_OSS_IS_CNAME:Optional[bool] = Field(
+        description="是否自定义域名",
+        default=False,
+    )

@@ -82,7 +82,7 @@ const nodeDefault: NodeDefault<LLMNodeType> = {
     }
 
     if (!errorMessages && !!payload.memory) {
-      const isChatModel = payload.model.mode === 'chat'
+      const isChatModel = payload.model.mode === 'chat1'
       // payload.memory.query_prompt_template not pass is default: {{#sys.query#}}
       if (isChatModel && !!payload.memory.query_prompt_template && !payload.memory.query_prompt_template.includes('{{#sys.query#}}'))
         errorMessages = t('workflow.nodes.llm.sysQueryInUser')

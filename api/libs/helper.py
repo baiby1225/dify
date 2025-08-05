@@ -147,6 +147,35 @@ class StrLen:
 
         return value
 
+def get_readable_file_size(size_in_bytes):
+        """
+        将文件大小转换为可读格式（如KB, MB, GB等）
+
+        参数:
+            size_in_bytes (int): 文件大小（字节）
+
+        返回:
+            str: 可读的文件大小字符串
+        """
+        try:
+            # 定义单位列表
+            units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+
+            # 计算合适的单位
+            unit_index = 0
+            while size_in_bytes >= 1024 and unit_index < len(units) - 1:
+                size_in_bytes /= 1024
+                unit_index += 1
+
+            # 返回格式化后的字符串
+            return f"{size_in_bytes:.2f}{units[unit_index]}"
+        except:
+            pass
+
+def debug_print(content: Any):
+        print("================================================================================\n")
+        print(f"{content}\n")
+        print("================================================================================\n")
 
 class DatetimeString:
     def __init__(self, format, argument="argument"):

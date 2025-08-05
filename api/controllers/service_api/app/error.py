@@ -107,3 +107,8 @@ class UnsupportedFileTypeError(BaseHTTPException):
     error_code = "unsupported_file_type"
     description = "File type not allowed."
     code = 415
+
+class ArgsValueError(BaseHTTPException):
+    error_code = "args_not_supported"
+    description = "args is not validate."
+    code = 400

@@ -112,6 +112,61 @@ class ChatApi(Resource):
         parser.add_argument("auto_generate_name", type=bool, required=False, default=True, location="json")
 
         args = parser.parse_args()
+        REPLACEMENT_MAP = {
+            "邦成": "BC",
+            "亚联财": "YLC",
+            "DJ小贷": "DJXD",
+            "渤海": "BH",
+            "国民": "GM",
+            "光大": "GD",
+            "陕国投": "SGT",
+            "外贸": "WM",
+            "东莞": "DG",
+            "民生": "MS",
+            "爱建": "AJ",
+            "洛阳": "LY",
+            "中海": "ZH",
+            "中诚": "ZC",
+            "蓝海": "LH",
+            "中关村": "ZGC",
+            "齐鲁": "QL",
+            "新网": "XW",
+            "汉口": "HK",
+            "浙商": "ZS",
+            "亿联": "YL",
+            "三湘": "SX"
+        }
+        REPLACEMENT_MAP2 = {
+            "BH": "BH信托",
+            "GM": "GM信托",
+            "GD": "GD信托",
+            "SGT": "SGT信托",
+            "WM": "WM信托",
+            "DG": "DG信托",
+            "MS": "MS银行",
+            "AJ": "AJ信托",
+            "LY": "LY银行",
+            "ZH": "ZH信托",
+            "ZC": "ZC信托",
+            "LH": "LH银行",
+            "ZGC": "ZGC银行",
+            "QL": "QL银行",
+            "XW": "XW银行",
+            "HK": "HK银行",
+            "ZS": "ZS银行",
+            "YL": "YL银行",
+            "SX": "SX银行"
+        }
+        # 替换query中的内容
+        query = args["query"]
+        new_query = self.replace_with_map(query, REPLACEMENT_MAP2)
+        new_query = ''.join(char for char in new_query if char.isprintable() and not char.isspace())
+        # query_isvalidate = bool(re.search(r'\S', new_query))
+
+        for old_str, new_str in REPLACEMENT_MAP.items():
+            new_query = new_query.replace(old_str, new_str)
+        args["query"] = new_query
+
 
         external_trace_id = get_external_trace_id(request)
         if external_trace_id:
@@ -145,9 +200,15 @@ class ChatApi(Resource):
         except ValueError as e:
             raise e
         except Exception:
-            logging.exception("internal server error.")
+            logging.exception("操作异常,请稍后再试!")
             raise InternalServerError()
 
+    def replace_with_map(self, text, replacement_map):
+        for key, value in replacement_map.items():
+            # 只有当key存在且value不在字符串中时才替换
+            if key in text and value not in text:
+                text = text.replace(key, value)
+        return text
 
 class ChatStopApi(Resource):
     @validate_app_token(fetch_user_arg=FetchUserArg(fetch_from=WhereisUserArg.JSON, required=True))
