@@ -11,13 +11,19 @@ class MessageTextField(fields.Raw):
     def format(self, value):
         return value[0]["text"] if value else ""
 
+
 class NameTextField(fields.Raw):
     def format(self, value):
-        debug_print("================================")
+        # debug_print("================================")
         debug_print(value)
-        value = re.sub(r'[^\x00-\x7F]+', '', value)
-        debug_print(value)
-        return value
+        new_value = self.remove_emoji(value)
+        debug_print(new_value)
+        return new_value
+
+    # 使用正则表达式去除表情字符（保留汉字、字母、标点等）
+    def remove_emoji(self, text):
+        emoji_pattern = re.compile(u'['u'\U0001F300-\U0001F64F' u'\U0001F680-\U0001F6FF' u'\u2600-\u2B55 \U00010000-\U0010ffff]+')
+        return emoji_pattern.sub('', text)
 
 
 feedback_fields = {
