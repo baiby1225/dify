@@ -14,10 +14,8 @@ class MessageTextField(fields.Raw):
 
 class NameTextField(fields.Raw):
     def format(self, value):
-        # debug_print("================================")
-        debug_print(value)
         new_value = self.remove_emoji(value)
-        debug_print(new_value)
+        # debug_print(new_value)
         return new_value
 
     # 使用正则表达式去除表情字符（保留汉字、字母、标点等）
