@@ -10,6 +10,7 @@ from core.plugin.entities.plugin import GenericProviderID
 from core.tools.entities.tool_entities import ToolProviderType
 from core.tools.signature import sign_tool_file
 from core.workflow.entities.workflow_execution import WorkflowExecutionStatus
+from extensions.storage.aliyun_oss_storage import AliyunOssStorage
 
 if TYPE_CHECKING:
     from models.workflow import Workflow
@@ -962,13 +963,15 @@ class Message(Base):
     @property
     def re_sign_file_url_answer(self) -> str:
         if not self.answer:
-            return self.answer
+            newanswer = self.process_markdown_files(self.answer)
+            return newanswer
 
         pattern = r"\[!?.*?\]\((((http|https):\/\/.+)?\/files\/(tools\/)?[\w-]+.*?timestamp=.*&nonce=.*&sign=.*)\)"
         matches = re.findall(pattern, self.answer)
 
         if not matches:
-            return self.answer
+            newanswer = self.process_markdown_files(self.answer)
+            return newanswer
 
         urls = [match[0] for match in matches]
 
@@ -976,7 +979,8 @@ class Message(Base):
         urls = list(set(urls))
 
         if not urls:
-            return self.answer
+            newanswer = self.process_markdown_files(self.answer)
+            return newanswer
 
         re_sign_file_url_answer = self.answer
         for url in urls:
@@ -1031,7 +1035,45 @@ class Message(Base):
                 sign_url += "&as_attachment=true"
             re_sign_file_url_answer = re_sign_file_url_answer.replace(url, sign_url)
 
-        return re_sign_file_url_answer
+        return self.process_markdown_files(re_sign_file_url_answer)
+
+    def process_markdown_files(self, markdown_content: str) -> str:
+
+        """通过正则表达式提取markdown中的文件链接并重新生成"""
+        # 匹配markdown链接格式：[文件名](URL)
+        try:
+            pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+            oss_manager = AliyunOssStorage()
+
+            def replace_link(match):
+                file_name = match.group(1)
+                original_url = match.group(2)
+                # 检查是否是OSS链接
+                if 'banchen.cc/dify/upload_files/source_files/' in original_url:
+                    # 从URL中提取文件名
+                    file_path_match = re.search(r'/source_files/([^?]+)', original_url)
+                    if file_path_match:
+                        extracted_file_name = file_path_match.group(1)
+                        # URL解码文件名
+                        import urllib.parse
+                        decoded_file_name = urllib.parse.unquote(extracted_file_name)
+
+                        # 重新生成签名URL
+                        try:
+                            new_url = oss_manager.sign_url(f"dify/upload_files/source_files/{decoded_file_name}")
+                            return f"[{file_name}]({new_url})"
+                        except Exception as e:
+                            return match.group(0)  # 返回原始链接
+
+                return match.group(0)  # 返回原始链接
+
+            # 替换所有匹配的链接
+            processed_content = re.sub(pattern, replace_link, markdown_content)
+            # print('============================================')
+            # print(processed_content)
+            return processed_content
+        except:
+            return markdown_content
 
     @property
     def user_feedback(self):
