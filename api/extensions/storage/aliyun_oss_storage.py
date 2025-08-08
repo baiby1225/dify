@@ -39,9 +39,12 @@ class AliyunOssStorage(BaseStorage):
         self.client.put_object(self.__wrapper_folder_filename(filename), data)
 
     def load_once(self, filename: str) -> bytes:
-        obj = self.client.get_object(self.__wrapper_folder_filename(filename))
-        data: bytes = obj.read()
-        return data
+        try:
+            obj = self.client.get_object(self.__wrapper_folder_filename(filename))
+            data: bytes = obj.read()
+            return data
+        except:
+            return None
 
     def load_stream(self, filename: str) -> Generator:
         obj = self.client.get_object(self.__wrapper_folder_filename(filename))
