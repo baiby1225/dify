@@ -1,4 +1,5 @@
 from collections.abc import Callable, Sequence
+from datetime import datetime, UTC
 from typing import Optional, Union
 
 from sqlalchemy import asc, desc, func, or_, select
@@ -218,3 +219,48 @@ class ConversationService:
         ]
 
         return InfiniteScrollPagination(variables, limit, has_more)
+
+    @classmethod
+    def delete_batch(
+        cls,
+        app_model: App,
+        conversation_ids: Sequence[str],
+        user: Optional[Union[Account, EndUser]]
+    ) -> dict:
+        """
+        批量删除对话
+        :param app_model: 应用模型
+        :param conversation_ids: 对话ID列表
+        :param user: 用户或终端用户
+        :return: 包含删除结果的字典
+        """
+        # 查询所有符合条件的对话
+
+        query = db.session.query(Conversation).filter(
+            Conversation.app_id == app_model.id,
+            Conversation.from_source == ("api" if isinstance(user, EndUser) else "console"),
+            Conversation.from_end_user_id == (user.id if isinstance(user, EndUser) else None),
+            Conversation.from_account_id == (user.id if isinstance(user, Account) else None),
+            Conversation.is_deleted == False,
+        )
+
+        if conversation_ids:
+            query = query.filter(Conversation.id.in_(conversation_ids))
+
+        conversations = query.all()
+
+        # 检查所有请求的对话是否存在
+        # found_ids = {conv.id for conv in conversations}
+        # not_found_ids = set(conversation_ids) - found_ids
+        #
+        # if not_found_ids:
+        #     raise ConversationNotExistsError(f"Conversations not found: {', '.join(not_found_ids)}")
+        if conversations:
+
+            # 批量标记为删除
+            current_time = datetime.now(UTC).replace(tzinfo=None)
+            for conversation in conversations:
+                conversation.is_deleted = True
+                conversation.updated_at = current_time
+
+            db.session.commit()

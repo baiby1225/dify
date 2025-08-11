@@ -57,11 +57,37 @@ class ConversationApi(Resource):
         except services.errors.conversation.LastConversationNotExistsError:
             raise NotFound("Last Conversation Not Exists.")
 
+    @validate_app_token(fetch_user_arg=FetchUserArg(fetch_from=WhereisUserArg.JSON))
+    @marshal_with(conversation_delete_fields)
+    def delete(self, app_model: App, end_user: EndUser, c_id=None):
+        app_mode = AppMode.value_of(app_model.mode)
+        if app_mode not in {AppMode.CHAT, AppMode.AGENT_CHAT, AppMode.ADVANCED_CHAT}:
+            raise NotChatAppError()
+
+        if c_id is None:
+            parser = reqparse.RequestParser()
+            parser.add_argument('conversation_ids', type=list, location='json')
+            args = parser.parse_args()
+            conversation_ids = args['conversation_ids']
+            try:
+                ConversationService.delete_batch(app_model, conversation_ids, end_user)
+            except:
+                # raise NotFound(f"Conversation {conversation_ids} Not Exists.")
+                raise NotFound("对话不存在,请刷新页面后重试!")
+            return {"result": "success"}, 200
+        else:
+            conversation_id = str(c_id)
+            try:
+                ConversationService.delete(app_model, conversation_id, end_user)
+            except services.errors.conversation.ConversationNotExistsError:
+                raise NotFound("对话不存在,请刷新页面后重试!")
+            return {"result": "success"}, 200
 
 class ConversationDetailApi(Resource):
     @validate_app_token(fetch_user_arg=FetchUserArg(fetch_from=WhereisUserArg.JSON))
     @marshal_with(conversation_delete_fields)
     def delete(self, app_model: App, end_user: EndUser, c_id=None):
+        print("=====")
         app_mode = AppMode.value_of(app_model.mode)
         if app_mode not in {AppMode.CHAT, AppMode.AGENT_CHAT, AppMode.ADVANCED_CHAT}:
             raise NotChatAppError()
