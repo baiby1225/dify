@@ -20,6 +20,37 @@ from services.message_service import MessageService
 from extensions.storage.aliyun_oss_storage import AliyunOssStorage
 
 class MessageListApi(Resource):
+    def get_retriever_resources(self, obj):
+        try:
+            if obj.message_metadata:
+                return json.loads(obj.message_metadata).get("retriever_resources", [])
+            return []
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    def get_reference_file(self, obj):
+        try:
+            resources = []
+            seen_documents = set()  # 用于记录已处理的documentid
+            if obj.message_metadata:
+                metadata = json.loads(obj.message_metadata)
+                storage = AliyunOssStorage()
+                for item in metadata.get("retriever_resources", []):
+                    if not item.get("doc_metadata"):
+                        continue
+                    osskeys = item["doc_metadata"]["realfile_osskey"]
+                    if osskeys:
+                        for osskey in osskeys.split("|"):
+                            if osskey in seen_documents:  # 如果已处理过则跳过
+                                continue
+                            seen_documents.add(osskey)
+                            resource = storage.referencefile(osskey)
+                            if resource:
+                                resources.append(resource)
+            return resources
+        except Exception as e:
+            return []
+
     message_fields = {
         "id": fields.String,
         "conversation_id": fields.String,
