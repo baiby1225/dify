@@ -940,7 +940,8 @@ class AdvancedChatAppGenerateTaskPipeline:
         seen_documents = set()  # 用于记录已处理的documentid
         try:
             storage = AliyunOssStorage()
-            for item in extras["metadata"].get("retriever_resources", []):
+
+            for item in extras.get("retriever_resources", []):
                 if not item.get("doc_metadata"):
                     continue
                 osskeys = item["doc_metadata"]["realfile_osskey"]
@@ -966,14 +967,9 @@ class AdvancedChatAppGenerateTaskPipeline:
         if self._task_state.metadata.annotation_reply:
             del extras["annotation_reply"]
 
-        if self._task_state.metadata:
-            extras["metadata"] = self._task_state.metadata.copy()
-            if "annotation_reply" in extras["metadata"]:
-                del extras["metadata"]["annotation_reply"]
-            # 往metadata中加入引用源文件
-            if extras["metadata"]:
-                reference_source = self._get_reference_file(extras)
-                extras["metadata"].setdefault("reference_source", reference_source)
+        # 往metadata中加入引用源文件
+        reference_source = self._get_reference_file(extras)
+        extras.setdefault("reference_source", reference_source)
 
         return MessageEndStreamResponse(
             task_id=self._application_generate_entity.task_id,
