@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from collections.abc import Callable, Generator, Mapping
@@ -79,6 +80,7 @@ from models import Conversation, EndUser, Message, MessageFile
 from models.account import Account
 from models.enums import CreatorUserRole
 from models.workflow import Workflow
+from tests.unit_tests.repositories.workflow_node_execution.test_sqlalchemy_repository import session
 
 logger = logging.getLogger(__name__)
 
@@ -969,6 +971,19 @@ class AdvancedChatAppGenerateTaskPipeline:
 
         # 往metadata中加入引用源文件
         reference_source = self._get_reference_file(extras)
+        try:
+            with self._database_session() as session:
+                # logger.error("---------------------->")
+                message = self._get_message(session=session)
+                roles_str = message.inputs.get("roles", "")
+                # logger.error(f"---inputs:{message.inputs}-----roles{roles_str}------,messageid:{self._message_id}---coviud:{self._conversation_id}----->")
+                # logger.error(roles_str)
+                roles_list = [role.strip() for role in roles_str.split(',') if role.strip()]
+                if "CustomerManager" in roles_list:
+                    reference_source = []
+        except Exception as e:
+            logger.error(e)
+            pass
         extras.setdefault("reference_source", reference_source)
 
         return MessageEndStreamResponse(

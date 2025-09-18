@@ -28,9 +28,31 @@ class MessageListApi(Resource):
         except (json.JSONDecodeError, TypeError):
             return []
 
+    def get_retriever_resources_with_role_check(self, obj):
+        """
+        获取retriever_resources，如果inputs中的roles包含CustomerManager则返回空数组
+        """
+        try:
+            # 检查inputs中是否包含CustomerManager角色
+            if hasattr(obj, 'inputs') and obj.inputs:
+                inputs = obj.inputs
+                if isinstance(inputs, dict) and 'roles' in inputs:
+                    roles_str = inputs['roles']
+                    roles_list = [role.strip() for role in roles_str.split(',') if role.strip()]
+                    if "CustomerManager" in roles_list:
+                        return []
+
+            # 如果没有CustomerManager角色，返回正常的retriever_resources
+            if obj.message_metadata:
+                return json.loads(obj.message_metadata).get("retriever_resources", [])
+            return []
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            return []
+
     def get_reference_file(self, obj):
         try:
             resources = []
+
             seen_documents = set()  # 用于记录已处理的documentid
             if obj.message_metadata:
                 metadata = json.loads(obj.message_metadata)
@@ -61,9 +83,7 @@ class MessageListApi(Resource):
         "message_files": fields.List(fields.Nested(message_file_fields)),
         "feedback": fields.Nested(feedback_fields, attribute="user_feedback", allow_null=True),
         "retriever_resources": fields.Raw(
-            attribute=lambda obj: json.loads(obj.message_metadata).get("retriever_resources", [])
-            if obj.message_metadata
-            else []
+            attribute=lambda obj: MessageListApi().get_retriever_resources_with_role_check(obj)
         ),
         "reference_source": fields.Raw(attribute=lambda obj: MessageListApi().get_reference_file(obj)),
         "created_at": TimestampField,
